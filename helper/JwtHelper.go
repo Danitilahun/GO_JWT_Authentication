@@ -23,6 +23,11 @@ type SignedDetails struct {
 var SECRET_KEY string = os.Getenv("SECRET_KEY")
 
 func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
+
+	// The jwt.ParseWithClaims function from the Go jwt library
+	// is used to parse and validate a JWT (JSON Web Token) represented
+	//  by the signedToken string against specific claims and with a provided key.
+
 	token, err := jwt.ParseWithClaims(
 		signedToken,
 		&SignedDetails{},
