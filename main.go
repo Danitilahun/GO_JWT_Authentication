@@ -32,6 +32,9 @@ func main() {
 
 	router.Use(gin.Recovery())
 
+	routes.UserRoute(router)
+	routes.AuthRoute(router)
+
 	// define a simple route for testing
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -39,8 +42,6 @@ func main() {
 		})
 	})
 
-	routes.AuthRoute(router)
-	router.UserRoute(router)
 	// start the server on port 8080
 	router.Run(":" + port)
 }
