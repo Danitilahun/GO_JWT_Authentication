@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Danitilahun/GO_JWT_Authentication.git/database"
@@ -170,5 +171,71 @@ func Login() gin.HandlerFunc {
 
 		// Respond with the authenticated user's details
 		c.JSON(http.StatusOK, foundUser)
+	}
+}
+
+// GetUsers returns a Gin handler function for retrieving a paginated list of users.
+// It checks if the user making the request has ADMIN privileges using CheckUserType helper function.
+// It retrieves users from the database based on pagination parameters (recordPerPage, page).
+func GetUsers() gin.HandlerFunc {
+	// Return an anonymous Gin handler function
+	return func(c *gin.Context) {
+		// Check if the user has ADMIN privileges, return error if not authorized
+		if err := helper.CheckUserType(c, "ADMIN"); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Create a context with a timeout of 100 seconds
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel() // Ensure context cancellation at the end of the function
+
+		// Parse query parameters for pagination: recordPerPage and page
+		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
+		if err != nil || recordPerPage < 1 {
+			recordPerPage = 10 // Default records per page if not provided or invalid
+		}
+		page, err1 := strconv.Atoi(c.Query("page"))
+		if err1 != nil || page < 1 {
+			page = 1 // Default page number if not provided or invalid
+		}
+
+		// Calculate the starting index for pagination
+		startIndex := (page - 1) * recordPerPage
+		startIndex, err = strconv.Atoi(c.Query("startIndex")) // Overwrite startIndex if provided in query (Unused in subsequent code)
+
+		// Define MongoDB aggregation pipeline stages for user retrieval
+		matchStage := bson.D{{"$match", bson.D{{}}}} // Match all documents
+		groupStage := bson.D{{"$group", bson.D{
+			{"_id", bson.D{{"_id", "null"}}},      // Grouping by null to aggregate all documents
+			{"total_count", bson.D{{"$sum", 1}}},  // Count total documents
+			{"data", bson.D{{"$push", "$$ROOT"}}}, // Push all documents to 'data' array
+		}}}
+		projectStage := bson.D{
+			{"$project", bson.D{
+				{"_id", 0},         // Exclude _id field from output
+				{"total_count", 1}, // Include total_count field in output
+				{"user_items", bson.D{{"$slice", []interface{}{"$data", startIndex, recordPerPage}}}}, // Pagination using $slice
+			}},
+		}
+
+		// Execute aggregation pipeline to retrieve paginated user data
+		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{matchStage, groupStage, projectStage})
+		defer cancel()
+
+		// Handle errors if aggregation fails
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while listing user items"})
+			return
+		}
+
+		// Parse aggregation results into bson.M slices
+		var allUsers []bson.M
+		if err = result.All(ctx, &allUsers); err != nil {
+			log.Fatal(err)
+		}
+
+		// Return the paginated user data in the response
+		c.JSON(http.StatusOK, allUsers[0])
 	}
 }
