@@ -1,24 +1,15 @@
 package helper
 
-import (
-	"net/http"
+import "github.com/dgrijalva/jwt-go"
 
-	"github.com/gin-gonic/gin"
-)
-
-func getTokenFromHeader(c *gin.Context) string {
-	// Extract token from the request header
-	clientToken := c.Request.Header.Get("token")
-
-	// Check if the token is empty
-	if clientToken == "" {
-		// Respond with an error indicating missing authorization header
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No Authorization header provided"})
-
-		// Abort further processing
-		c.Abort()
-		return ""
-	}
-
-	return clientToken
+// SignedDetails represents a structure combining user-specific details and standard JWT claims.
+// It includes fields for Email, First_name, Last_name, Uid, and User_type
+// to capture user information, along with jwt.StandardClaims for standard JWT metadata.
+type SignedDetails struct {
+	Email      string
+	First_name string
+	Last_name  string
+	Uid        string
+	User_type  string
+	jwt.StandardClaims
 }
