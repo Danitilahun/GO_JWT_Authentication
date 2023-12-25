@@ -1,6 +1,7 @@
 package main
 
 import (
+	routes "github.com/Danitilahun/GO_JWT_Authentication.git/route"
 	"github.com/gin-gonic/gin"
 	"os"
 )
@@ -38,6 +39,8 @@ func main() {
 		})
 	})
 
+	routes.AuthRoute(router)
+	router.UserRoute(router)
 	// start the server on port 8080
 	router.Run(":" + port)
 }
