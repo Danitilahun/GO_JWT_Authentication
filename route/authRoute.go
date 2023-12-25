@@ -1,13 +1,11 @@
 package route
 
 import (
+	"github.com/Danitilahun/GO_JWT_Authentication.git/controller"
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRoute(incomingRoutes *gin.Engine) {
-	
-	// incomingRoutes.POST("/login", Login)
-	// incomingRoutes.POST("/register", Register)
-	// incomingRoutes.POST("/refresh", Refresh)
-	// incomingRoutes.POST("/logout", Logout)
+func AuthRoutes(incomingRoutes *gin.Engine) {
+	incomingRoutes.POST("users/signup", controller.Signup())
+	incomingRoutes.POST("users/login", controller.Login())
 }

@@ -32,8 +32,8 @@ func main() {
 
 	router.Use(gin.Recovery())
 
-	routes.UserRoute(router)
-	routes.AuthRoute(router)
+	routes.UserRoutes(router)
+	routes.AuthRoutes(router)
 
 	// define a simple route for testing
 	router.GET("/", func(c *gin.Context) {

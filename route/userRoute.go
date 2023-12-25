@@ -1,13 +1,13 @@
 package route
 
 import (
+	"github.com/Danitilahun/GO_JWT_Authentication.git/controller"
+	"github.com/Danitilahun/GO_JWT_Authentication.git/middleware"
 	"github.com/gin-gonic/gin"
 )
 
-func UserRoute(incomingRoutes *gin.Engine) {
-
-	// incomingRoutes.GET("/users", GetAllUsers)
-	// incomingRoutes.GET("/users/:id", GetUser)
-	// incomingRoutes.PUT("/users/:id", UpdateUser)
-	// incomingRoutes.DELETE("/users/:id", DeleteUser)
+func UserRoutes(incomingRoutes *gin.Engine) {
+	incomingRoutes.Use(middleware.Authenticate())
+	incomingRoutes.GET("/users", controller.GetUsers())
+	incomingRoutes.GET("/users/:user_id", controller.GetUser())
 }
