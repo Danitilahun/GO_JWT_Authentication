@@ -113,3 +113,62 @@ func Signup() gin.HandlerFunc {
 		c.JSON(http.StatusOK, resultInsertionNumber)
 	}
 }
+
+// Login returns a Gin handler function for user login.
+func Login() gin.HandlerFunc {
+	// Return an anonymous Gin handler function
+	return func(c *gin.Context) {
+		// Create a context with a timeout of 100 seconds
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel() // Ensure context cancellation at the end of the function
+
+		var user models.User      // Create a User model instance for incoming login details
+		var foundUser models.User // Create a User model instance for the found user details
+
+		// Parse and bind the JSON request body to the user struct
+		if err := c.BindJSON(&user); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Find the user in the database using their email
+		err := userCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&foundUser)
+		defer cancel()
+		if err != nil {
+			// If the user is not found or an error occurs, return an error response
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "email or password is incorrect"})
+			return
+		}
+
+		// Verify the password provided with the stored hashed password
+		passwordIsValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
+		defer cancel()
+		if passwordIsValid != true {
+			// If the password verification fails, return an error response
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+
+		// Check if the user is found based on the retrieved email
+		if foundUser.Email == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+		}
+
+		// Generate JWT tokens for the authenticated user
+		token, refreshToken, _ := helper.GenerateAllTokens(*foundUser.Email, *foundUser.First_name, *foundUser.Last_name, *foundUser.User_type, foundUser.User_id)
+
+		// Update user's tokens in the database
+		helper.UpdateAllTokens(token, refreshToken, foundUser.User_id)
+
+		// Retrieve the updated user details from the database
+		err = userCollection.FindOne(ctx, bson.M{"user_id": foundUser.User_id}).Decode(&foundUser)
+		if err != nil {
+			// If an error occurs during fetching updated user details, return an error response
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Respond with the authenticated user's details
+		c.JSON(http.StatusOK, foundUser)
+	}
+}
