@@ -1,12 +1,18 @@
 package helper
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/Danitilahun/GO_JWT_Authentication.git/database"
 	"github.com/dgrijalva/jwt-go"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // SignedDetails represents a structure combining user-specific details and standard JWT claims.
@@ -21,6 +27,7 @@ type SignedDetails struct {
 	jwt.StandardClaims
 }
 
+var userCollection *mongo.Collection = database.OpenCollection(database.Client, "auth", "user")
 var SECRET_KEY string = os.Getenv("SECRET_KEY")
 
 // GenerateAllTokens generates JWT (JSON Web Token) and Refresh Token pair based on the provided user details.
@@ -115,4 +122,56 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 		return
 	}
 	return claims, msg
+}
+
+// UpdateAllTokens updates the tokens and timestamp for a user identified by their user ID in the database.
+// Parameters:
+//
+//	signedToken: The new signed JWT to be updated for the user.
+//	signedRefreshToken: The new signed Refresh Token to be updated for the user.
+//	userId: The unique identifier of the user whose tokens are to be updated.
+func UpdateAllTokens(signedToken string, signedRefreshToken string, userId string) {
+	// Create a context with a timeout of 100 seconds
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel() // Ensure context cancellation at the end of the function
+
+	// Create a slice of primitive.E to store update operations
+	var updateObj primitive.D
+
+	// Append token and refresh token update operations to the updateObj
+	updateObj = append(updateObj, bson.E{"token", signedToken})
+	updateObj = append(updateObj, bson.E{"refresh_token", signedRefreshToken})
+
+	// Get the current time and prepare an update operation for the 'updated_at' field
+	Updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	updateObj = append(updateObj, bson.E{"updated_at", Updated_at})
+
+	// Prepare options for the update operation, set 'Upsert' to true to insert if the document does not exist
+	upsert := true
+	filter := bson.M{"user_id": userId}
+	opt := options.UpdateOptions{
+		Upsert: &upsert,
+	}
+
+	// Perform the update operation on the userCollection
+	_, err := userCollection.UpdateOne(
+		ctx,
+		filter,
+		bson.D{
+			{"$set", updateObj}, // Use $set operator to update the specified fields
+		},
+		&opt,
+	)
+
+	// Ensure the context is cancelled regardless of the function's flow
+	defer cancel()
+
+	// Handle error if update operation fails
+	if err != nil {
+		log.Panic(err)
+		return
+	}
+
+	// Return after successful token update
+	return
 }

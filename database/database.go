@@ -38,3 +38,5 @@ func OpenCollection(client *mongo.Client, dbName string, collectionName string) 
 	var collection *mongo.Collection = client.Database(dbName).Collection(collectionName)
 	return collection
 }
+
+var userCollection *mongo.Collection = OpenCollection(Client, "auth", "user")
